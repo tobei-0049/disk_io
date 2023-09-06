@@ -1,0 +1,24 @@
+#
+#   comment
+
+
+MAX_PROC   2
+PROTOKOLL_DIR   .
+##MAX_PROC   8
+
+GEN_FILES 10  N_PROC 1  SIZE=1k BS=1k PREFIX=gen_ PROTOKOLL_FILE=gen_file.prot
+GEN_FILES 10  N_PROC 2  SIZE=1k BS=1k PREFIX=murks PROTOKOLL_FILE=gen_file.prot
+
+REM_FILES  10  N_PROC 1 PREFIX=gen_ PROTOKOLL_FILE=/dev/null
+REM_FILES  10  N_PROC 2 PREFIX=murks PROTOKOLL_FILE=rem_file.prot
+
+#### create a file by each process every process reads the own file
+WRITE_FILE  N_PROC 2 SIZE=21m BS=1k PREFIX=muell_   PROTOKOLL_FILE=/dev/null
+READ_FILE   N_PROC 2           BS=1k PREFIX=muell_###   PROTOKOLL_FILE=rd.prot
+REM_FILES 1 N_PROC 2                 PREFIX=muell_   PROTOKOLL_FILE=/dev/null
+
+#### create one file and every process reads the same file
+WRITE_FILE  N_PROC 1 SIZE=21m BS=1k  PREFIX=muell_  PROTOKOLL_FILE=/dev/null
+READ_FILE   N_PROC 2           BS=1k PREFIX=muell_  PROTOKOLL_FILE=rd.prot
+REM_FILES 1 N_PROC 1                 PREFIX=muell_  PROTOKOLL_FILE=/dev/null
+

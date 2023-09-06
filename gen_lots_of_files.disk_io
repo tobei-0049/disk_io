@@ -1,0 +1,74 @@
+#!/bin/ksh
+
+#############################################################
+#    $1     $2       $3
+#  CPUs    DIRs    files     ges_files
+#    8      10      128      10240
+#    8      25      512      102400
+#
+###########################################
+
+# this script creates the neccessary files for the disk_io program
+# to generate files within directories. 
+# 
+#   HOWTO use:
+#      run this script with the corresponding parameters:
+#         $1   number of CPUs (processes) for creation
+#         $2   number of directories per CPU (process)
+#         $3   number of files per directory
+#
+#      cd into a directory with sufficient disk space and inodes
+#      run the script  mkdir_script to create the directories
+#         sh ${HOME}/src/disk_io/test/mkdir_script
+#      run the disk_io program 
+#         disk_io  -t ${HOME}/src/disk_io/test/master
+#
+
+  if [ $# -ne 3 ]; then
+	  echo " USAGE: $0  NR_OF_PROCS NR_OF_DIRS NR_OF_FILES"
+	  exit 1
+  fi
+
+
+  SCRIPT_DIR=`pwd`
+  FILE_SIZE=1k
+#  FILE_SIZE=0
+
+  cat  > master <<EOF
+
+PROTOKOLL_DIR  $SCRIPT_DIR
+MAX_PROC       $1
+EVAL_SCRIPT  $SCRIPT_DIR/gen_###  N_PROC $1 PROTOKOLL_FILE=protokoll
+EVAL_SCRIPT  $SCRIPT_DIR/stat_###  N_PROC $1 PROTOKOLL_FILE=protokoll
+EVAL_SCRIPT  $SCRIPT_DIR/unlink_###  N_PROC $1 PROTOKOLL_FILE=protokoll
+
+EOF
+
+  cnt=1
+  rm -f mkdir_script
+  while [ "$cnt" -le $1 ]; do
+
+    cat > $SCRIPT_DIR/gen_${cnt} <<EOF_2
+  
+MAX_PROC   1
+
+EOF_2
+     
+    cp $SCRIPT_DIR/gen_${cnt}  $SCRIPT_DIR/stat_${cnt}
+    cp $SCRIPT_DIR/gen_${cnt}  $SCRIPT_DIR/unlink_${cnt}
+	 dir=1
+	 while [ "$dir" -le $2 ]; do
+	   PF=dir_${cnt}_${dir}
+	   echo "GEN_FILES $3 N_PROC 1  SIZE=$FILE_SIZE BS=1k PREFIX=$PF/gen_ PROTOKOLL_FILE=/dev/null" >> $SCRIPT_DIR/gen_${cnt}
+           echo "STAT_FILES $3 N_PROC 1 PREFIX=$PF/gen_ PROTOKOLL_FILE=/dev/null" >> $SCRIPT_DIR/stat_${cnt}
+           echo "REM_FILES $3 N_PROC 1  PREFIX=$PF/gen_ PROTOKOLL_FILE=/dev/null" >> $SCRIPT_DIR/unlink_${cnt}
+
+	   echo " mkdir $PF" >> mkdir_script
+	   dir=`expr $dir + 1`
+	 done
+     cnt=`expr $cnt + 1`
+  done
+
+
+  
+

@@ -1,0 +1,167 @@
+
+
+    disk_io is a little tool for testing, stressing and performance analyzing 
+    the Input/Output subsystem of an unix environment. 
+    
+
+     disk_io has two operation modes:
+         interactive:  used to get a first impression or to generate a file
+                       with an given size.
+
+         test_suite mode: execute a couple of disk_io commands to 
+                          create, write, read or remove files
+                          this mode is useful to create lots of files and
+                          fill a filesystem to make performance analysis 
+                          on a loaded filesystem. We used this tool to 
+                          create 1 million files with 8 processes in about
+                          2 hours on the NEC SX-5 in an acceptance test.
+
+     disk_io is _NOT_ a test programm for MPI-IO it _could_ be run in parallel
+     on a MPP-system using MPI but it does normal IO. 
+
+     To enable MPI parallel version of this program use the following
+     flags for compiling and linking respectively: 
+     -DUSE_MPI -lmpi   
+
+     Some systems require the use of mpicc as compiler front end.
+     note: the test suite is not designed for MPI2-IO
+
+     The mpi version uses master-slave programming technique.
+     Several independent read/write streams are enabled on
+     different processors writing in the same file system.
+     The files are different. Due to the master-slave programming
+     technique it is necessary to allocate one additional processor
+     as specified in the steering file e.g. write_perf:
+     for MAX_PROC 8 in write_perf:
+     mpirun -np 9 ~/bin/disk_io -t ./write_perf
+
+
+  
+     disk_io has in both modes interactive and test mode a debug flag
+          disk_io -d ...
+     this option is for debugging of the disk_io programm (of course it is
+     obsolete ;-) ) or may be useful to find some trouble in a test_suite
+
+     using interactive:
+         disk_io [-b buffer_size] file_size
+         disk_io -r [-b buffer_size] file_name
+
+            in the first case disk_io creates, and writes a file using
+            write(2) systemcall and writes in buffer_size blocks.
+            The file is in the current working directory and the filename is
+                  <SIZE_in_Bytes>B    for files <  1MByte
+                  <SIZE_in_MBytes>MB  for files >= 1MByte 
+
+            in the second case disk_io reads a file using read(2) system-
+            call in buffer_size blocks
+
+     Size is per default in Bytes, but k/K, m/M or g/G is possible for
+     kilo-Bytes, mega- or Giga-Bytes. I always use base 2 ( giga is
+     1024*1024*1024 )
+
+         interactive mode provides a feature (-l flag) to analyze the 
+         charcteristic of a single write/read. In this mode performance 
+         data is stored in memory while a file is written/read . When 
+         the file operation completed the performance data written in a
+         file in the current working directory. gnuplot is able to create
+         nice slides... This option is based of an idea and implemented by
+         Thomas Boenisch Boenisch@hlrs.de
+  
+         
+
+     test_suite mode:
+          disk_io -t test_suite_file
+
+            executes all commands in the file test_suite_file. All commands
+            have a fixed format!!!
+            Commands are:
+              MAX_PROC   <number>   # create number of processes using fork(2)
+              PROTOKOLL_DIR  path   # should be the absolute pathname to store 
+                                    # the results if requested
+
+GEN_FILES 10  N_PROC 7  SIZE=1k BS=1k PREFIX=gen_ PROTOKOLL_FILE=gen_file.prot
+               each process creates 10 files with a size of 1kByte writing in
+               1KByte blocks. The number of processes is defined by N_PROC (in
+               this example = 7). The filename gen_.<process_id>.<file_number>
+               in this example files  gen_.0.0  ... gen_6.9 are created.
+               The time to execute this operation is written in the file
+               PROTOKOLL_DIR/gen_file.prot. Format is:
+               <N__PROC>  average min max size files
+               N_PROC    number of processes running the test
+               average   total number of files divided by max time needed 
+               min       minimum number of files created per second
+               max       max number of files created per second 
+               size      size per file
+               files     number of files created per process
+
+
+STAT_FILES 7 N_PROC 2                 PREFIX=muell_   PROTOKOLL_FILE=stat_file.out
+              each process stat(2)s number of files ( in this example 7 )
+              the filename is muell_.<process_id>.<file_number>
+              format in resultfile is:
+              <N__PROC>  average min max size files
+              N_PROC    number of processes running the test
+              average   total number of files divided by max time needed
+              min       minimum number of file-stats per second
+              max       max number of file-stats per second
+              size      NOT valid yet (should be always zero)
+              files     number of files tested per process
+
+ 
+     
+WRITE_FILE  N_PROC 2 SIZE=21m BS=1k PREFIX=muell_   PROTOKOLL_FILE=/dev/null
+              each process writes one file with the size 21 MBytes in 1k blocks
+              with the filename  muell_.<process_id>.0 The number of processes
+              is defined by N_PROC. The format of the result is:
+              <N__PROC>  aggregate min max size block_size
+              N_PROC        number of processes running the test
+              aggregate     write performance in Bytes/second
+              minimal       write performance in Bytes/second
+              maximal       write performance in Bytes/second
+              size          of the files in Bytes
+              block_size    3rd argument of write(2) system call
+              Timer is started after open(2) and stopped after close(2)
+              (whatever this means for this OS)
+
+
+READ_FILE  N_PROC 1  BS=16k  PREFIX=muell_   PROTOKOLL_FILE=rd_file.out
+              each process reads a file (usualy created by WRITE_FILE) with
+              a buffer size of 16kBytes the filename is muell.<process_id>.0
+              result could be found in PROTOKOLL_DIR/rd_file.out the 
+              format is:
+              <N__PROC>  aggregate min max size block_size
+              N_PROC        number of processes running the test
+              aggregate     read performance in Bytes/second
+              minimal       read performance in Bytes/second
+              maximal       read performance in Bytes/second
+              size          of the files in Bytes
+              block_size    3rd argument of read(2) system call
+              
+
+REM_FILES 7 N_PROC 2                 PREFIX=muell_   PROTOKOLL_FILE=/dev/null
+              each process removes number of files ( in this example 7 )
+              the filename is muell_.<process_id>.<file_number>
+              format in resultfile is:
+               <N__PROC>  average min max size files
+               N_PROC    number of processes running the test
+               average   total number of files divided by max time needed 
+               min       minimum number of files removed per second
+               max       max number of files removed per second 
+               size      NOT valid yet (should be always zero)
+               files     number of files removed per process
+               
+
+To do:
+    allow $HOME or ~ to define  PROTOKOLL_DIR 
+    create test pattern in a output file and use the same algorithm to
+    compare the data in read mode. This may slow down the performance but
+    problems in the filesystem layer could be found...
+    parallel read/write in interactive mode
+
+
+     disk_io is maintained by Thomas Beisel,   Beisel@hlrs.de
+	
+     Please send any comments or questions to
+     Beisel@hlrs.de and boenisch@hlrs.de
+
+     

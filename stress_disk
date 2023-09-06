@@ -1,0 +1,51 @@
+#!/bin/sh
+
+ # this simple script could be used to write dummy data onto a disk
+ # install disk_io program (e.g. in ~/bin and/or adjust PATH variable)
+ # change into a test-directory
+ # run this script
+ # please note this will eat up all your disk space available in this
+ # directory and run forever!!!
+ 
+
+
+NR_OF_FILES=100      # Numer of files
+SUM_SIZE=AUTO      # total amount of disk_space in MB
+NR_OF_CPU=1           # Number of CPUs which create files
+  
+CMD_FILE=./disk_io.cmd-file
+
+if [ "$SUM_SIZE" = "AUTO" ]; then
+   SUM_SIZE=`df -kP . | tail -1 | awk '{print $4}'`
+   SUM_SIZE=`expr $SUM_SIZE / 1024`
+   SUM_SIZE=`expr $SUM_SIZE - \( $SUM_SIZE / 10 \)` 
+fi
+
+
+SIZE_OF_FILE=`expr $SUM_SIZE / \( $NR_OF_FILES \* $NR_OF_CPU \)`
+
+if [ "$SIZE_OF_FILE" -le 0 ]; then
+   echo " nothing to create"
+fi
+
+
+  rm -f $CMD_FILE
+  
+  echo "MAX_PROC   $NR_OF_CPU" > $CMD_FILE
+  echo "PROTOKOLL_DIR   ."     >> $CMD_FILE
+  echo "GEN_FILES  $NR_OF_FILES N_PROC $NR_OF_CPU SIZE=${SIZE_OF_FILE}m BS=1m PREFIX=muell_   PROTOKOLL_FILE=/dev/null" >> $CMD_FILE
+  echo "REM_FILES  $NR_OF_FILES N_PROC $NR_OF_CPU PREFIX=muell_   PROTOKOLL_FILE=/dev/null" >> $CMD_FILE
+
+  
+   x=1
+   while [ 1 ]; do
+     echo " durchlauf nr $x"
+     disk_io -t $CMD_FILE
+     sync
+     sleep 10
+     x=`expr $x + 1`
+   done
+
+
+
+

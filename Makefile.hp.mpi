@@ -1,0 +1,39 @@
+
+
+SUN_SOLARIS7 = -xarch=v9 -DSOLARIS_7
+HP           = +DD64   -DUSE_MPI -lmpi 
+CRAY_T3E     = -DUSE_MPI -lmpi -g 
+
+NPROC = 3
+
+#ARCH_FLAG = ${SUN_SOLARIS7}
+ARCH_FLAG =  ${CRAY_T3E}
+ARCH_FLAG =  ${HP}
+
+CC=cc
+CC=mpicc
+CFLAGS   =  -I${HOME}/include -I. -g ${ARCH_FLAG}
+LDFLAGS  =  ${ARCH_FLAG}
+
+OBJ = disk.o master.o slave.o steuerfile.o commands.o stuff.o
+
+SRC = ${OBJ:.o=.c}
+
+
+disk_io:  ${OBJ}
+	$(CC) ${LDFLAGS} -o disk_io ${OBJ}
+
+
+${OBJ}: disk_io.h
+
+
+lint:
+	lint ${ARCH_FLAG} master.c disk.c slave.c steuerfile.c stuff.c
+
+install: disk_io
+	cp disk_io ${HOME}/bin
+	chmod 711  ${HOME}/bin/disk_io
+
+clean:
+	rm -f disk_io *.o 
+

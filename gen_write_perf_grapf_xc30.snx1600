@@ -1,0 +1,86 @@
+#!/bin/bash
+
+#SBATCH --job-name=MYJOB
+#SBATCH --nodes=2
+#SBATCH --time=00:30:00
+#SBATCH --ntasks-per-node=1
+
+### #PBS -N disk_io-job
+### #PBS -l mppwidth=97
+### #PBS -l mppnppn=1
+### #PBS -l walltime=15:50:00
+
+
+###  wir nehmen je Filesystem 4 mal die Anzahl der OSTs also
+##### /univ_1   96    384
+##### /univ_2   72    288
+##### /res_1    96    384
+##### /res_2    72    288
+##### /ind_1    24     96
+##### /ind_2    24     96
+
+
+FILE_SIZE=50g
+#FILE_SIZE=5g
+#FILE_SIZE=1g
+
+  ## module unload PrgEnv-cray
+  ## module load PrgEnv-pgi
+
+  DISK_IO_SRC_DIR=${HOME}/src/disk-io/trunk/disk_io
+
+  # Change to the direcotry that the job was submitted from
+W_D=`ws_allocate d_io 5`
+
+## W_D=${HOME}/d_work_dir
+###  W_D=/ind_1/tobei/d_work_dir
+
+  cd  $W_D
+
+
+
+###   aprun -n 2 -d 1  $HOME/psrc/lat/lat
+
+
+
+for WR_PROCS in 1 2 4 6 8 10 12 16 20 24 ; do
+
+  MPI_N=`expr $WR_PROCS + 1`
+
+  rm -rf dir_*
+
+cat > perf_test.cmd  <<EOF
+###
+MAX_PROC   ${WR_PROCS}
+PROTOKOLL_DIR  .
+
+EOF
+
+##echo  "WRITE_FILE N_PROC ${WR_PROCS} SIZE=32m  BS=16k  PREFIX=b_16k   PROTOKOLL_FILE=wr_block.prot"  >> perf_test.cmd
+echo  "WRITE_FILE N_PROC ${WR_PROCS} SIZE=${FILE_SIZE}  BS=16k  PREFIX=b_16k   PROTOKOLL_FILE=wr_block.prot"  >> perf_test.cmd
+echo  "WRITE_FILE N_PROC ${WR_PROCS} SIZE=${FILE_SIZE}  BS=64k  PREFIX=b_64k   PROTOKOLL_FILE=wr_block.prot"  >> perf_test.cmd
+echo  "WRITE_FILE N_PROC ${WR_PROCS} SIZE=${FILE_SIZE}  BS=2m   PREFIX=b_2m    PROTOKOLL_FILE=wr_block.prot"  >> perf_test.cmd
+echo  "WRITE_FILE N_PROC ${WR_PROCS} SIZE=${FILE_SIZE}  BS=8m   PREFIX=b_8m    PROTOKOLL_FILE=wr_block.prot"  >> perf_test.cmd
+
+echo  "READ_FILE  N_PROC ${WR_PROCS}   BS=16k  PREFIX=b_16k   PROTOKOLL_FILE=rd_block.prot"  >> perf_test.cmd
+echo  "READ_FILE  N_PROC ${WR_PROCS}   BS=64k  PREFIX=b_64k   PROTOKOLL_FILE=rd_block.prot"  >> perf_test.cmd
+echo  "READ_FILE  N_PROC ${WR_PROCS}   BS=2m   PREFIX=b_2m    PROTOKOLL_FILE=rd_block.prot"  >> perf_test.cmd
+echo  "READ_FILE  N_PROC ${WR_PROCS}   BS=8m   PREFIX=b_8m    PROTOKOLL_FILE=rd_block.prot"  >> perf_test.cmd
+      
+   echo "start parallel application"
+set -x
+  aprun -n $MPI_N   -N 1 ${DISK_IO_SRC_DIR}/disk_io.hornet.MPI   -t perf_test.cmd
+  if [ $? -ne 0 ]; then
+    echo " aprun failed with $?"
+    exit 1
+  fi
+set +x
+   echo "finished parallel application"
+
+  rm -f b_*
+  sleep 5
+
+
+done
+
+   

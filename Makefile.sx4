@@ -1,0 +1,27 @@
+
+
+ARCH_FLAG = 
+CC=cc
+CFLAGS   =  -I${HOME}/include -I. ${ARCH_FLAG}
+LDFLAGS  =  -L${HOME}/lib  ${ARCH_FLAG}
+
+
+OBJ = disk.o master.o slave.o steuerfile.o commands.o stuff.o
+
+SRC = ${OBJ:.o=.c}
+
+disk_io: ${OBJ}
+		$(CC) ${LDFLAGS} -o disk_io ${OBJ}
+
+${OBJ}: disk_io.h
+
+lint:
+	lint -I. ${SRC}
+
+install: disk_io
+	cp disk_io ${HOME}/bin
+	chmod 711  ${HOME}/bin/disk_io
+
+clean:
+	rm -f disk_io *.o 
+
