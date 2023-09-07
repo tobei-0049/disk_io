@@ -1,0 +1,56 @@
+#!/bin/bash
+
+#PBS -N Disk_IO-metadata-test
+#PBS -l select=5:node_type=rome:mpiprocs=2
+#PBS -l walltime=00:20:00
+
+
+## disk_io need one additional node/mpi-process as a master prozess to drive the
+## worker nodes / processes ... 
+ 
+
+###  load module environment
+  module load mpt
+
+
+  DISK_IO_SRC_DIR=${HOME}/src/disk-io/trunk/disk_io
+
+## printenv
+echo " ===================================== "
+
+  
+  #  create a workspace and run test inside this directory
+  #   if workspace tools are not in use just create a directory 
+  #   and set the path to this directory
+  W_D=`ws_allocate  -F ws11.1   bench_dir  3`
+
+  if [ $? -ne 0 ]; then
+     echo "Error $0 Can not allocate Workspace directory"
+     exit 1
+  fi
+
+  ## change into workspace directory
+  cd  $W_D
+  if [ $? -ne 0 ]; then
+     echo "Error: can not change into workspace directory! Abort"
+     exit 2
+  fi
+
+
+for WR_PROCS in 1 2 4 8; do
+  echo "  start test using ${WR_PROCS} workers" 
+
+  MPI_N=`expr $WR_PROCS + 1`
+
+
+  rm -rf dir_*
+  ${DISK_IO_SRC_DIR}/gen_lots_of_files.disk_io $WR_PROCS  10  1000
+
+  sh ./mkdir_script
+
+  # Launch the parallel job to the allocated compute nodes
+  #aprun -n $MPI_N   -N 1 ${DISK_IO_SRC_DIR}/disk_io -t master
+  mpirun -np $MPI_N  ${DISK_IO_SRC_DIR}/disk_io -t master
+
+  echo "  test completed" 
+done
